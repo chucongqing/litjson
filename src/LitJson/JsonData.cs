@@ -385,6 +385,13 @@ namespace LitJson
             type = JsonType.String;
             inst_string = str;
         }
+
+        public static JsonData CreateArrayJson()
+        {
+            var jd = new JsonData();
+            jd.EnsureList();
+            return jd;
+        }
         #endregion
 
 
@@ -426,6 +433,23 @@ namespace LitJson
             return data.inst_boolean;
         }
 
+        public static explicit operator float(JsonData data)
+        {
+
+            if (data.IsDouble)
+            {
+                return (float)data.inst_double;
+            }
+            else if (data.IsInt)
+            {
+                return (float)data.inst_int;
+            }
+            else
+            {
+                throw new InvalidCastException("can't cast to a float type");
+            }
+
+        }
         public static explicit operator Double (JsonData data)
         {
             if (data.type != JsonType.Double)
@@ -817,25 +841,6 @@ namespace LitJson
             json = null;
 
             return EnsureList ().Add (data);
-        }
-
-        public bool Remove(object obj)
-        {
-            json = null;
-            if(IsObject)
-            {
-                JsonData value = null;
-                if (inst_object.TryGetValue((string)obj, out value))
-                    return inst_object.Remove((string)obj) && object_list.Remove(new KeyValuePair<string, JsonData>((string)obj, value));
-                else
-                    throw new KeyNotFoundException("The specified key was not found in the JsonData object.");
-            }
-            if(IsArray)
-            {
-                return inst_array.Remove(ToJsonData(obj));
-            }
-            throw new InvalidOperationException (
-                    "Instance of JsonData is not an object or a list.");
         }
 
         public void Clear ()

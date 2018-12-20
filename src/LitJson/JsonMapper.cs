@@ -14,11 +14,17 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Globalization;
 using System.IO;
+using System.Linq;
 using System.Reflection;
 
 
 namespace LitJson
 {
+    public class NoExportAttribute : Attribute
+    {
+
+    }
+
     internal struct PropertyMetadata
     {
         public MemberInfo Info;
@@ -208,15 +214,23 @@ namespace LitJson
             data.Properties = new Dictionary<string, PropertyMetadata> ();
 
             foreach (PropertyInfo p_info in type.GetProperties ()) {
-                if (p_info.Name == "Item") {
-                    ParameterInfo[] parameters = p_info.GetIndexParameters ();
+                if (p_info.Name == "Item")
+                {
 
-                    if (parameters.Length != 1)
+                    var att = p_info.GetCustomAttributes(typeof(NoExportAttribute), false).FirstOrDefault();
+
+                    if(att != null)
                         continue;
+                    else
+                    {
+                        ParameterInfo[] parameters = p_info.GetIndexParameters();
 
-                    if (parameters[0].ParameterType == typeof (string))
-                        data.ElementType = p_info.PropertyType;
+                        if (parameters.Length != 1)
+                            continue;
 
+                        if (parameters[0].ParameterType == typeof(string))
+                            data.ElementType = p_info.PropertyType;
+                    }
                     continue;
                 }
 
