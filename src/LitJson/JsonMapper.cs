@@ -12,10 +12,13 @@
 using System;
 using System.Collections;
 using System.Collections.Generic;
+using System.Diagnostics;
 using System.Globalization;
 using System.IO;
 using System.Linq;
 using System.Reflection;
+using UnityEngine;
+using Object = System.Object;
 
 
 namespace LitJson
@@ -24,6 +27,22 @@ namespace LitJson
     {
 
     }
+
+    public class OnlyMeAttribute : Attribute
+    {
+
+    }
+
+    public class OnlyExportMarkedAttribute : Attribute
+    {
+
+    }
+
+    public class ExportMarkAttribute : Attribute
+    {
+
+    }
+
 
     internal struct PropertyMetadata
     {
@@ -259,6 +278,61 @@ namespace LitJson
             }
         }
 
+        private enum PropertyOrField
+        {
+            Property = 0,
+            Field,
+        }
+        private static bool CheckExportByCustomAttribute(Type classType , object  info,PropertyOrField pf)
+        {
+            Func<object, bool> IsExported = (attribute) =>
+            {
+                var classAtt = classType.GetCustomAttributes(false).FirstOrDefault();
+
+                if (classAtt != null && classAtt.GetType() == typeof(OnlyExportMarkedAttribute))
+                {
+                    if (attribute != null && attribute.GetType() == typeof(ExportMarkAttribute))
+                    {
+                        return true;
+                    }
+                    else
+                    {
+                        return false;
+                    }
+                }
+                else
+                {
+                    if (attribute != null && attribute.GetType() == typeof(NoExportAttribute))
+                    {
+                        return false;
+                    }
+                    else
+                    {
+                        return true;
+                    }
+
+                }
+            };
+
+            if (pf == PropertyOrField.Property)
+            {
+                var pInfo = (PropertyInfo) info;
+                var att = pInfo.GetCustomAttributes(false).FirstOrDefault();
+               return IsExported(att);
+
+            }
+            else if (pf == PropertyOrField.Field)
+            {
+                var pInfo = (FieldInfo)info;
+                var att = pInfo.GetCustomAttributes(false).FirstOrDefault();
+                return IsExported(att);
+            }
+            else
+            {
+                return true;
+            }
+        }
+
         private static void AddTypeProperties (Type type)
         {
             if (type_properties.ContainsKey (type))
@@ -270,6 +344,12 @@ namespace LitJson
                 if (p_info.Name == "Item")
                     continue;
 
+                if (!CheckExportByCustomAttribute(type, p_info, PropertyOrField.Property))
+                {
+                    continue;
+                }
+
+                //UnityEngine.Debug.Log("Property Add " + p_info.Name);
                 PropertyMetadata p_data = new PropertyMetadata ();
                 p_data.Info = p_info;
                 p_data.IsField = false;
@@ -277,7 +357,14 @@ namespace LitJson
             }
 
             foreach (FieldInfo f_info in type.GetFields ()) {
+
+                if (!CheckExportByCustomAttribute(type, f_info, PropertyOrField.Field))
+                {
+                    continue;
+                }
+
                 PropertyMetadata p_data = new PropertyMetadata ();
+          
                 p_data.Info = f_info;
                 p_data.IsField = true;
 
@@ -317,7 +404,7 @@ namespace LitJson
             return op;
         }
 
-        private static object ReadValue (Type inst_type, JsonReader reader)
+        private static object ReadValue (Type inst_type, JsonReader reader, Object insObj = null)
         {
             reader.Read ();
 
@@ -441,7 +528,13 @@ namespace LitJson
                 AddObjectMetadata (value_type);
                 ObjectMetadata t_data = object_metadata[value_type];
 
-                instance = Activator.CreateInstance (value_type);
+                if(insObj == null)
+                    instance = Activator.CreateInstance (value_type);
+                else
+                {
+                    instance = insObj;
+                }
+
 
                 while (true) {
                     reader.Read ();
@@ -718,16 +811,20 @@ namespace LitJson
 
             table[json_type][value_type] = importer;
         }
-
+       
         private static void WriteValue (object obj, JsonWriter writer,
                                         bool writer_is_private,
                                         int depth)
         {
+
+           
             if (depth > max_nesting_depth)
-                throw new JsonException (
-                    String.Format ("Max allowed object depth reached while " +
-                                   "trying to export from type {0}",
-                                   obj.GetType ()));
+            {
+                throw new JsonException(
+                    String.Format("Max allowed object depth reached while " +
+                                  "trying to export from type {0} depth:{1}",
+                        obj.GetType(), depth));
+            }
 
             if (obj == null) {
                 writer.Write (null);
@@ -806,7 +903,6 @@ namespace LitJson
             if (custom_exporters_table.ContainsKey (obj_type)) {
                 ExporterFunc exporter = custom_exporters_table[obj_type];
                 exporter (obj, writer);
-
                 return;
             }
 
@@ -870,6 +966,8 @@ namespace LitJson
             }
         }
 
+      
+
         public static void ToJson (object obj, JsonWriter writer)
         {
             WriteValue (obj, writer, false, 0);
@@ -894,6 +992,14 @@ namespace LitJson
             return (JsonData) ToWrapper (
                 delegate { return new JsonData (); }, json);
         }
+
+        public static T ToObject<T>(string json, T obj)
+        {
+            JsonReader reader = new JsonReader(json);
+
+            return (T)ReadValue(typeof(T), reader, obj);
+        }
+
 
         public static T ToObject<T> (JsonReader reader)
         {
