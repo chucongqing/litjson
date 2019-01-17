@@ -3,6 +3,16 @@ LitJSON
 
 [![NuGet](https://img.shields.io/nuget/v/LitJson.svg)](https://www.nuget.org/packages/LitJson) [![MyGet](https://img.shields.io/myget/litjson/vpre/LitJson.svg?label=myget)](https://www.myget.org/gallery/litjson)
 
+
+-----
+### Custom Chagne
+* JsonMapper
+  ```
+    //TOObject Change
+    
+  ```
+-----
+
 A *.Net* library to handle conversions from and to JSON (JavaScript Object
 Notation) strings.
 
@@ -45,10 +55,10 @@ The bootstrappers will (locally in repo)
   * Fetch and install Cake runner
   * Execute build script with supplied target (`--target=[Target]`) or by default
     1. Clean previous artifacts
-    1. Restore build dependencies from NuGet
-    1. Build
-    1. Run unit tests
-    1. Create NuGet package
+    2. Restore build dependencies from NuGet
+    3. Build
+    4. Run unit tests
+    5. Create NuGet package
   
 #### Testing
 
